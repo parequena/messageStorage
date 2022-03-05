@@ -1,9 +1,10 @@
 #include <MessageManager.hpp>
 #include <RenderManager.hpp>
+#include <MessageStorage.hpp>
 
 // Ctor.
-MessageManager::MessageManager(RenderManager &renderer) noexcept
-    : m_renderer{renderer}
+MessageManager::MessageManager(RenderManager &renderer, MessageStorage &storage) noexcept
+    : m_renderer{renderer}, m_storage{storage}
 {
 }
 
@@ -13,7 +14,8 @@ bool MessageManager::processInput()
     auto wait4Key = [&]()
     {
         m_renderer.askWait4Key();
-        std::cin.get();
+        std::string aux{};
+        std::getline(std::cin, aux);
     };
 
     while (!m_exit)
@@ -30,61 +32,57 @@ bool MessageManager::processInput()
             continue;
         }
 
+        MenuOptions opt{static_cast<MenuOptions>(value)};
+
+        if (opt == MenuOptions::EXIT)
+        {
+            m_renderer.askQuit();
+            m_exit = false;
+            m_storage.clearAll();
+            break;
+        }
+
         for (auto const &v : k_menuToMethod)
         {
-            if (v.val == value)
+            if (v.val != opt)
             {
-                (this->*v.pMeth)();
-                wait4Key();
-                break;
+                continue;
             }
+
+            (this->*v.pMeth)();
+            wait4Key();
+            break;
         }
     }
 
     return m_exit;
 }
 
-// Exists an user.
-bool MessageManager::exists(std::string_view user) const noexcept
-{
-    auto const search = m_messages.find(user.data());
-    if (search == m_messages.end())
-    {
-        m_renderer.errorUserNOTExist();
-        return false;
-    }
-
-    return true;
-}
-
 // AddUser
-void MessageManager::addUser() noexcept
+void MessageManager::addUser() const noexcept
 {
     m_renderer.askForName();
     std::string user{};
     std::getline(std::cin, user);
 
-    auto [pair, inserted] = m_messages.try_emplace(user, std::vector<Message>());
-    if (!inserted) // This can be changed with exists(user);
+    if (!m_storage.existUser(user)) // This can be changed with exists(user);
     {
         m_renderer.errorUserExist();
         return;
     }
 
+    m_storage.addUser(user);
     m_renderer.addUser(user);
-
-    // Precatching messages.
-    // This can ve avoided, but it could be slower.
-    pair->second.reserve(10);
 }
 
 // Send message.
-void MessageManager::sendMessage() noexcept
+void MessageManager::sendMessage() const noexcept
 {
     // Who sended the message.
     std::string from = askForUser(&RenderManager::askFrom);
     if (from.empty())
     {
+        m_renderer.errorUserNOTExist();
         return;
     }
 
@@ -92,6 +90,7 @@ void MessageManager::sendMessage() noexcept
     std::string to = askForUser(&RenderManager::askTo);
     if (to.empty())
     {
+        m_renderer.errorUserNOTExist();
         return;
     }
 
@@ -101,22 +100,23 @@ void MessageManager::sendMessage() noexcept
     std::getline(std::cin, msg);
     m_renderer.askMessageSent();
 
-    m_messages[to].emplace_back(Message{from, msg});
+    m_storage.addMessage(to, from, msg);
 }
 
 // Recieve all messages for user.
-void MessageManager::receiveAllMessages() noexcept
+void MessageManager::receiveAllMessages() const noexcept
 {
     std::string user = askForUser(&RenderManager::askForNameUser);
     if (user.empty())
     {
+        m_renderer.errorUserNOTExist();
         return;
     }
 
     m_renderer.askBeginMessages();
     auto nMess{0};
 
-    auto &messages = m_messages.at(user);
+    auto const &messages = m_storage.getMessages(user);
     for (auto const &msg : messages)
     {
         ++nMess;
@@ -125,19 +125,13 @@ void MessageManager::receiveAllMessages() noexcept
         m_renderer.askContentUser(msg.content);
     }
 
-    messages.clear();
+    m_storage.clearUser(user);
     m_renderer.askEndMessages();
 }
 
 // Change lang.
-void MessageManager::changeLang() noexcept
+void MessageManager::changeLang() const noexcept
 {
     // Implement logic to swap language.
     m_renderer.swapRenderer();
-}
-
-// Quit.
-void MessageManager::quit() noexcept
-{
-    m_exit = true;
 }

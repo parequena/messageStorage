@@ -6,14 +6,16 @@
 #include <string>
 #include <string_view>
 #include <array>
-#include <iostream>
+#include <iostream> // std::cin
 
 struct RenderManager;
+// struct MessageStorage;
+#include <MessageStorage.hpp>
 
 struct MessageManager
 {
     // Ctor.
-    explicit MessageManager(RenderManager &renderer) noexcept;
+    explicit MessageManager(RenderManager &renderer, MessageStorage &storage) noexcept;
 
     // process Input.
     [[maybe_unused]] bool processInput();
@@ -22,64 +24,57 @@ private:
     // Renderer
     RenderManager &m_renderer;
 
+    // Component
+    MessageStorage &m_storage;
+
     template <typename func_t>
-    std::string askForUser(func_t func)
+    std::string askForUser(func_t func) const noexcept
     {
         (m_renderer.*func)();
         std::string user{};
         std::getline(std::cin, user);
 
-        return exists(user) ? user : std::string{};
+        return m_storage.existUser(user) ? user : std::string{};
     }
 
     // exit?
     bool m_exit{false};
 
-    // Exists an user.
-    [[nodiscard]] bool exists(std::string_view user) const noexcept;
-
     // AddUser
-    void addUser() noexcept;
+    void addUser() const noexcept;
 
     // Send message.
-    void sendMessage() noexcept;
+    void sendMessage() const noexcept;
 
     // Recieve all messages for user.
-    void receiveAllMessages() noexcept;
+    void receiveAllMessages() const noexcept;
 
     // Change lang.
-    void changeLang() noexcept;
+    void changeLang() const noexcept;
 
-    // Quit.
-    void quit() noexcept;
+    enum class MenuOptions : std::uint8_t
+    {
+        ADD_USER = 1,
+        SEND_MESSAGE = 2,
+        RECIEVE_MSG = 3,
+        CHANGE_LANG = 4,
+        EXIT = 5
+    };
 
     struct menuToMeth
     {
-        int val{};
-        void (MessageManager::*pMeth)() noexcept {};
+        MenuOptions val{MenuOptions::EXIT};
+        void (MessageManager::*pMeth)() const noexcept {};
         // This signature could be const noexcept if we move this code to an other scope.
         // Unordered map into a component storage, and message manager, as component manager.
         // This way, we could have that componen storage pased as reference to this class.
     };
 
     inline static std::array k_menuToMethod{
-        menuToMeth{1, &MessageManager::addUser},
-        menuToMeth{2, &MessageManager::sendMessage},
-        menuToMeth{3, &MessageManager::receiveAllMessages},
-        menuToMeth{4, &MessageManager::changeLang},
-        menuToMeth{5, &MessageManager::quit}};
-
-    // --------------------------------------
-    // Component storage. This could be moved outside.
-    struct Message
-    {
-        std::string from{};
-        std::string content{};
-    };
-
-    // Messages.
-    std::unordered_map<std::string, std::vector<Message>>
-        m_messages{};
+        menuToMeth{MenuOptions::ADD_USER, &MessageManager::addUser},
+        menuToMeth{MenuOptions::SEND_MESSAGE, &MessageManager::sendMessage},
+        menuToMeth{MenuOptions::RECIEVE_MSG, &MessageManager::receiveAllMessages},
+        menuToMeth{MenuOptions::CHANGE_LANG, &MessageManager::changeLang}};
 };
 
 #endif /* MESSAGE_MANAGER_HPP */

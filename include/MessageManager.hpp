@@ -1,80 +1,30 @@
-#ifndef MESSAGE_MANAGER_HPP
-#define MESSAGE_MANAGER_HPP
+#ifndef MESSAGE_STORAGE_HPP
+#define MESSAGE_STORAGE_HPP
 
 #include <unordered_map>
-#include <vector>
 #include <string>
+#include <vector>
 #include <string_view>
-#include <array>
-#include <iostream> // std::cin
-
-struct RenderManager;
-// struct MessageStorage;
-#include <MessageStorage.hpp>
 
 struct MessageManager
 {
-    // Ctor.
-    explicit MessageManager(RenderManager &renderer, MessageStorage &storage) noexcept;
+    struct Message
+    {
+        std::string from{};
+        std::string content{};
+    };
 
-    // process Input.
-    [[maybe_unused]] bool processInput();
+    [[nodiscard]] bool existUser(std::string_view user) const noexcept;
+    void addUser(std::string_view user) noexcept;
+    void addMessage(std::string_view user, std::string_view from, std::string_view msg) noexcept;
+    [[nodiscard]] std::vector<Message> getMessages(std::string_view user) const noexcept;
+    void clearUser(std::string_view user) noexcept;
+    void clearAll() noexcept;
 
 private:
-    // Renderer
-    RenderManager &m_renderer;
-
-    // Component
-    MessageStorage &m_storage;
-
-    template <typename func_t>
-    std::string askForUser(func_t func) const noexcept
-    {
-        (m_renderer.*func)();
-        std::string user{};
-        std::getline(std::cin, user);
-
-        return m_storage.existUser(user) ? user : std::string{};
-    }
-
-    // exit?
-    bool m_exit{false};
-
-    // AddUser
-    void addUser() const noexcept;
-
-    // Send message.
-    void sendMessage() const noexcept;
-
-    // Recieve all messages for user.
-    void receiveAllMessages() const noexcept;
-
-    // Change lang.
-    void changeLang() const noexcept;
-
-    enum class MenuOptions : std::uint8_t
-    {
-        ADD_USER = 1,
-        SEND_MESSAGE = 2,
-        RECIEVE_MSG = 3,
-        CHANGE_LANG = 4,
-        EXIT = 5
-    };
-
-    struct menuToMeth
-    {
-        MenuOptions val{MenuOptions::EXIT};
-        void (MessageManager::*pMeth)() const noexcept {};
-        // This signature could be const noexcept if we move this code to an other scope.
-        // Unordered map into a component storage, and message manager, as component manager.
-        // This way, we could have that componen storage pased as reference to this class.
-    };
-
-    inline static std::array k_menuToMethod{
-        menuToMeth{MenuOptions::ADD_USER, &MessageManager::addUser},
-        menuToMeth{MenuOptions::SEND_MESSAGE, &MessageManager::sendMessage},
-        menuToMeth{MenuOptions::RECIEVE_MSG, &MessageManager::receiveAllMessages},
-        menuToMeth{MenuOptions::CHANGE_LANG, &MessageManager::changeLang}};
+    // Messages.
+    std::unordered_map<std::string, std::vector<Message>>
+        m_messages{};
 };
 
-#endif /* MESSAGE_MANAGER_HPP */
+#endif /* MESSAGE_STORAGE_HPP */

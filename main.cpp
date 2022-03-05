@@ -1,17 +1,17 @@
 #include <RenderManager.hpp>
+#include <InputManager.hpp>
 #include <MessageManager.hpp>
-#include <MessageStorage.hpp>
 
 int main(int, const char *[])
 {
 	// Storages the messages.
-	MessageStorage msgStr{};
+	MessageManager msgStr{};
 
 	// Manages the render.
 	RenderManager renderMgr{};
 
 	// Manages all.
-	MessageManager manager{renderMgr, msgStr};
+	InputManager manager{renderMgr, msgStr};
 	manager.processInput();
 
 	return 0;
